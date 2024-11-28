@@ -37,16 +37,17 @@ async function generateNumericOrderNumber() {
 
 orderSchema.pre('save', async function (next) {
     const order = this;
-    if (order.isNew) {
+    if (!order.orderNumber) { // Verifica si el campo no está definido
         try {
-            order.orderNumber = await generateNumericOrderNumber(); // Asigna el número generado
-            next();
+            const id = await ksuid.random(); // Genera el KSUID
+            const numericId = BigInt(`0x${id.string}`).toString(); // Convierte a número
+            order.orderNumber = numericId.slice(0, 20).padStart(20, '0'); // Ajusta a 20 dígitos
         } catch (error) {
-            next(error);
+            return next(error); // Propaga el error
         }
-    } else {
-        next();
     }
+    next();
 });
+
 
 module.exports = mongoose.model('Order', orderSchema);
