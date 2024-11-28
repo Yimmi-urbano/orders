@@ -14,16 +14,13 @@ const orderSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Middleware para generar un orderNumber solo numérico
 orderSchema.pre('save', async function (next) {
     const order = this;
 
     if (order.isNew) {
         try {
-            // Genera un número basado en el timestamp y un sufijo aleatorio para evitar colisiones
-            const timestamp = Date.now().toString(); // Timestamp actual en milisegundos
-            const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // Número aleatorio de 4 dígitos
-            order.orderNumber = `${timestamp}${randomSuffix}`;
+            const randomOrderNumber = Math.floor(1000000000 + Math.random() * 9000000000); // Genera entre 1000000000 y 9999999999
+            order.orderNumber = randomOrderNumber.toString();
             next();
         } catch (error) {
             next(error);
