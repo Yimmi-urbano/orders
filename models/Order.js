@@ -19,8 +19,13 @@ orderSchema.pre('save', async function (next) {
 
     if (order.isNew) {
         try {
-            const randomOrderNumber = Math.floor(1000000000 + Math.random() * 9000000000); // Genera entre 1000000000 y 9999999999
-            order.orderNumber = randomOrderNumber.toString();
+
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime(); 
+            const hours = now.getHours().toString().padStart(2, '0'); 
+            const seconds = now.getSeconds().toString().padStart(2, '0'); 
+            order.orderNumber = `${startOfMonth}${hours}${seconds}`;
+
             next();
         } catch (error) {
             next(error);
