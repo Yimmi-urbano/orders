@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number },
     currency: { type: String },
     orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    createdAt: { type: Date }
+    createdAt: { type: String }
 });
 
 orderSchema.pre('save', async function (next) {
