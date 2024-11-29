@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number },
     currency: { type: String },
     orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    createdAt: { type: String } 
+    createdAt: { type: Date }
 });
 
 orderSchema.pre('save', async function (next) {
@@ -22,13 +22,13 @@ orderSchema.pre('save', async function (next) {
     if (order.isNew) {
         try {
 
-            const now = moment.tz('America/Lima'); 
+            const now = moment.tz('America/Lima');
 
-            order.createdAt = now.utc().toDate(); 
+            order.createdAt = now.utc().toDate().toISOString();
 
-            const timestamp = now.valueOf();  
+            const timestamp = now.valueOf();
             const ksuidString = await ksuid.random();
-            const randomPart = ksuidString.string.slice(0, 7);  
+            const randomPart = ksuidString.string.slice(0, 7);
 
             order.orderNumber = `${timestamp}${randomPart}`;
 
