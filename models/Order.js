@@ -32,8 +32,6 @@ orderSchema.pre('save', async function (next) {
       // Ensure UTC and ISO 8601 format for createdAt
       order.createdAt = now.utc().toDate().toISOString();
 
-      // Now save the document
-      await order.save();
 
       next();
     } catch (error) {
