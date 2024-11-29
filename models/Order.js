@@ -13,27 +13,23 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number },
     currency: { type: String },
     orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    createdAt: { type: Date }  // Aquí solo dejamos el tipo de dato como Date
+    createdAt: { type: String } 
 });
 
-// Middleware para configurar la zona horaria de Lima (UTC-5) y generar orderNumber
 orderSchema.pre('save', async function (next) {
     const order = this;
 
     if (order.isNew) {
         try {
-            // Configura la zona horaria a 'America/Lima' (UTC -5)
-            const now = moment.tz('America/Lima');  // Obtener la fecha y hora local en Lima
 
-            // Asignar la fecha local a createdAt
-            order.createdAt = now.utc().toDate();  // Aquí guardamos la fecha en el campo createdAt en formato UTC
+            const now = moment.tz('America/Lima'); 
 
-            // Generar un timestamp en milisegundos (13 dígitos)
-            const timestamp = now.valueOf();  // Timestamp en milisegundos
+            order.createdAt = now.utc().toDate(); 
+
+            const timestamp = now.valueOf();  
             const ksuidString = await ksuid.random();
-            const randomPart = ksuidString.string.slice(0, 7);  // Tomamos los primeros 7 caracteres del KSUID
+            const randomPart = ksuidString.string.slice(0, 7);  
 
-            // Generar el número de orden
             order.orderNumber = `${timestamp}${randomPart}`;
 
             next();
