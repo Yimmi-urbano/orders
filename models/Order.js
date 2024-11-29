@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const ksuid = require('ksuid');
-const moment = require('moment-timezone');
+const moment = require('moment-timezone'); 
 
 const orderSchema = new mongoose.Schema({
     orderNumber: { type: String, unique: true },
@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number },
     currency: { type: String },
     orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date }
 });
 
 orderSchema.pre('save', async function (next) {
@@ -21,24 +21,24 @@ orderSchema.pre('save', async function (next) {
 
     if (order.isNew) {
         try {
-          
-            const country = order.clientInfo.country || 'America/Lima'; 
 
-            const now = moment.tz(country); 
+            const country = order.clientInfo.country || 'America/Lima';  
+            const now = moment.tz(country);
+
+            order.createdAt = now.toDate();
 
             const timestamp = now.valueOf();
-
             const ksuidString = await ksuid.random(); 
-            const randomPart = ksuidString.string.slice(0, 7);
+            const randomPart = ksuidString.string.slice(0, 7); 
 
             order.orderNumber = `${timestamp}${randomPart}`;
 
-            next();
+            next(); 
         } catch (error) {
-            next(error);
+            next(error);  
         }
     } else {
-        next();
+        next();  
     }
 });
 
