@@ -13,32 +13,35 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number },
     currency: { type: String },
     orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-    createdAt: { type: String }
+    createdAt: { type: String }  // Changed to String for ISO 8601 format
 });
 
 orderSchema.pre('save', async function (next) {
-    const order = this;
+  const order = this;
 
-    if (order.isNew) {
-        try {
+  if (order.isNew) {
+    try {
+      const now = moment.tz('America/Lima');
 
-            const now = moment.tz('America/Lima');
+      // Generate order number before saving
+      const timestamp = now.valueOf();
+      const ksuidString = await ksuid.random();
+      const randomPart = ksuidString.string.slice(0, 7);
+      order.orderNumber = `${timestamp}${randomPart}`;
 
-            order.createdAt = now.utc().toDate().toISOString();
+      // Ensure UTC and ISO 8601 format for createdAt
+      order.createdAt = now.utc().toDate().toISOString();
 
-            const timestamp = now.valueOf();
-            const ksuidString = await ksuid.random();
-            const randomPart = ksuidString.string.slice(0, 7);
+      // Now save the document
+      await order.save();
 
-            order.orderNumber = `${timestamp}${randomPart}`;
-
-            next();
-        } catch (error) {
-            next(error);
-        }
-    } else {
-        next();
+      next();
+    } catch (error) {
+      next(error);
     }
+  } else {
+    next();
+  }
 });
 
 module.exports = mongoose.model('Order', orderSchema);
