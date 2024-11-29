@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const ksuid = require('ksuid');
+const moment = require('moment-timezone');
 
 const orderSchema = new mongoose.Schema({
     orderNumber: { type: String, unique: true },
@@ -20,10 +21,15 @@ orderSchema.pre('save', async function (next) {
 
     if (order.isNew) {
         try {
+          
+            const country = order.clientInfo.country || 'America/Lima'; 
 
-            const timestamp = Date.now();
+            const now = moment.tz(country); 
+
+            const timestamp = now.valueOf();
+
             const ksuidString = await ksuid.random(); 
-            const randomPart = ksuidString.string.slice(0, 7); 
+            const randomPart = ksuidString.string.slice(0, 7);
 
             order.orderNumber = `${timestamp}${randomPart}`;
 
