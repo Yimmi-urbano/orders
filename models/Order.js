@@ -25,11 +25,14 @@ orderSchema.pre('save', async function (next) {
             const country = order.clientInfo.country || 'America/Lima';  
             const now = moment.tz(country); // Obtener la fecha local en la zona horaria correcta
 
-            // Asignar la fecha al campo createdAt en UTC (internamente MongoDB la convertirá a UTC)
-            order.createdAt = now.toDate(); // Este es el valor que se almacenará en MongoDB
+            // Convertir la fecha local a UTC
+            const utcDate = now.utc(); // Convertir a UTC
+
+            // Asignar la fecha UTC al campo createdAt
+            order.createdAt = utcDate.toDate(); // Este es el valor que se almacenará en MongoDB
 
             // Generar un timestamp en milisegundos (13 dígitos)
-            const timestamp = now.valueOf(); // Timestamp en milisegundos
+            const timestamp = utcDate.valueOf(); // Timestamp en milisegundos
             const ksuidString = await ksuid.random(); 
             const randomPart = ksuidString.string.slice(0, 7); // Los primeros 7 caracteres del KSUID
 
