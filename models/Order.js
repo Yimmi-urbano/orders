@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-
-let counter = 0;
+const ksuid = require('ksuid');
 
 const orderSchema = new mongoose.Schema({
     orderNumber: { type: String, unique: true },
@@ -16,22 +15,18 @@ const orderSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-// Middleware para generar un orderNumber único
 orderSchema.pre('save', async function (next) {
     const order = this;
 
     if (order.isNew) {
         try {
-            const now = new Date();
-            
-            // Obtenemos la fecha en formato YYYYMMDD
-            const date = now.toISOString().split('T')[0].replace(/-/g, '')/12; // Formato YYYYMMDD - 12
-            const time = now.toISOString().split('T')[1].split('.')[0].replace(/:/g, '').slice(0, 6); // HHMMSS
-            const milliseconds = now.getMilliseconds().toString().padStart(4, '0'); // SSSS
-            const randomDigits = Math.floor(1000 + Math.random() * 9000).toString(); // 4 dígitos aleatorios
-      
-            order.orderNumber = `${date}${time}${milliseconds}${randomDigits}`;
-            
+
+            const timestamp = Date.now();
+            const ksuidString = await ksuid.random(); 
+            const randomPart = ksuidString.string.slice(0, 7); 
+
+            order.orderNumber = `${timestamp}${randomPart}`;
+
             next();
         } catch (error) {
             next(error);
