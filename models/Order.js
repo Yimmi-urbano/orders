@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const ksuid = require('ksuid');
-const moment = require('moment-timezone'); 
+const moment = require('moment-timezone');
 
 const orderSchema = new mongoose.Schema({
     orderNumber: { type: String, unique: true },
@@ -21,26 +21,27 @@ orderSchema.pre('save', async function (next) {
 
     if (order.isNew) {
         try {
-
+            // Configura la zona horaria a 'America/Lima' (UTC -5)
             const country = order.clientInfo.country || 'America/Lima';  
-            const now = moment.tz(country);  // Obtenemos la fecha en la zona horaria de Lima
+            const now = moment.tz(country); // Obtener la fecha local en la zona horaria correcta
 
-            // Forzamos que la fecha sea guardada en la zona horaria local de Lima (sin conversión a UTC)
-            order.createdAt = now.local().toDate();  // `.local()` ajusta la fecha al horario local
+            // Asignar la fecha al campo createdAt en UTC (internamente MongoDB la convertirá a UTC)
+            order.createdAt = now.toDate(); // Este es el valor que se almacenará en MongoDB
 
-            const timestamp = now.valueOf();  // Timestamp en milisegundos
+            // Generar un timestamp en milisegundos (13 dígitos)
+            const timestamp = now.valueOf(); // Timestamp en milisegundos
             const ksuidString = await ksuid.random(); 
-            const randomPart = ksuidString.string.slice(0, 7);  // Toma los primeros 7 caracteres del KSUID
+            const randomPart = ksuidString.string.slice(0, 7); // Los primeros 7 caracteres del KSUID
 
-            // Genera el número de orden
+            // Generar el número de orden
             order.orderNumber = `${timestamp}${randomPart}`;
 
-            next(); 
+            next();
         } catch (error) {
-            next(error);  
+            next(error);
         }
     } else {
-        next();  
+        next();
     }
 });
 
