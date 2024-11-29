@@ -26,7 +26,7 @@ orderSchema.pre('save', async function (next) {
             const now = moment.tz('America/Lima');  // Obtener la fecha y hora local en Lima
 
             // Asignar la fecha local a createdAt
-            order.createdAt = now.toDate();  // Aquí guardamos la fecha en el campo createdAt en formato UTC
+            order.createdAt = now.utc().toDate();  // Aquí guardamos la fecha en el campo createdAt en formato UTC
 
             // Generar un timestamp en milisegundos (13 dígitos)
             const timestamp = now.valueOf();  // Timestamp en milisegundos
