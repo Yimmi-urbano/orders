@@ -42,15 +42,26 @@ exports.getOrderByDomainAndOrderNumber = async (req, res) => {
         const domain = req.headers['domain'];
         const { orderNumber } = req.params;
 
+        // Validar que los parámetros existan
+        if (!domain || !orderNumber) {
+            return res.status(400).json({ message: 'Faltan parámetros necesarios' });
+        }
+
+        // Buscar el pedido
         const order = await Order.findOne({ domain, orderNumber });
         if (!order) {
             return res.status(404).json({ message: 'Pedido no encontrado' });
         }
+
+        // Respuesta exitosa
         res.status(200).json(order);
     } catch (error) {
+        console.error('Error al obtener el pedido:', error);
         handleError(res, error);
     }
 };
+
+
 
 exports.updatePaymentStatus = async (req, res) => {
     try {
