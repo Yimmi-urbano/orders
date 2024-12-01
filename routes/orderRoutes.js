@@ -7,6 +7,6 @@ router.post('/', validateDomain, orderController.createOrder);
 router.get('/:domain', orderController.getOrdersByDomain);
 router.patch('/:orderId/payment-status', orderController.updatePaymentStatus);
 router.patch('/:orderId/order-status', orderController.updateOrderStatus);
-router.get('/:order_number', orderController.getOrderByDomainAndOrderNumber);
+router.get('/:orderNumber', orderController.getOrderByDomainAndOrderNumber);
 
 module.exports = router;

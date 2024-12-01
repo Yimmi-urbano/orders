@@ -40,9 +40,9 @@ exports.getOrdersByDomain = async (req, res) => {
 exports.getOrderByDomainAndOrderNumber = async (req, res) => {
     try {
         const domain = req.headers['domain'];
-        const { order_number } = req.params;
+        const { orderNumber } = req.params;
 
-        const order = await Order.findOne({ domain, order_number });
+        const order = await Order.findOne({ domain, orderNumber });
         if (!order) {
             return res.status(404).json({ message: 'Pedido no encontrado' });
         }
