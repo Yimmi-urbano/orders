@@ -13,9 +13,7 @@ exports.createOrder = async (req, res) => {
             billingInfo,
             shippingInfo,
             total,
-            currency,
-            paymentStatus: 'pending',
-            orderStatus: 'pending'
+            currency
         });
 
         const savedOrder = await order.save();
