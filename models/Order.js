@@ -9,10 +9,25 @@ const orderSchema = new mongoose.Schema({
     clientInfo: {},
     billingInfo: {},
     shippingInfo: {},
-    paymentStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending' },
+    paymentStatus: {
+        type: {
+            typeStatus: { type: String, enum: ['pending', 'completed', 'failed', 'decline'], default: 'pending' },
+            message: { type: String },
+            data: { type: String },
+            methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'] }
+        },
+        default: {}
+    },
     total: { type: Number },
     currency: { type: String },
-    orderStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
+    orderStatus: {
+        type: {
+            typeStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
+            message: { type: String },
+            date: { type: String }
+        },
+        default: {}
+    },
     createdAt: { type: String }
 });
 

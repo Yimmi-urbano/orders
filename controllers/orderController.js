@@ -1,12 +1,10 @@
-// controllers/orderController.js
-
 const Order = require('../models/Order');
 const { handleError } = require('../utils/errorHandler');
 
 exports.createOrder = async (req, res) => {
     try {
         const domain = req.headers['domain'];
-        const { products, clientInfo, billingInfo, shippingInfo,currency,total } = req.body;
+        const { products, clientInfo, billingInfo, shippingInfo, currency, total } = req.body;
 
         const order = new Order({
             domain,
@@ -19,7 +17,7 @@ exports.createOrder = async (req, res) => {
             paymentStatus: 'pending',
             orderStatus: 'pending'
         });
-        
+
         const savedOrder = await order.save();
         res.status(201).json(savedOrder);
     } catch (error) {
@@ -27,15 +25,54 @@ exports.createOrder = async (req, res) => {
     }
 };
 
-exports.getOrdersByDomain = async (req, res) => {
+exports.getOrders = async (req, res) => {
     try {
         const domain = req.headers['domain'];
-        const orders = await Order.find({ domain });
-        res.status(200).json(orders);
+        if (!domain) {
+            return res.status(400).json({ status: false, message: 'El dominio es requerido' });
+        }
+
+        const { clientName, orderNumber, page = 1 } = req.query;
+
+        const filter = { domain };
+
+        if (clientName) {
+            filter['clientInfo.name'] = { $regex: clientName, $options: 'i' };
+        }
+        if (orderNumber) {
+            filter.orderNumber = orderNumber;
+        }
+
+        const limit = 20;
+        const skip = (page - 1) * limit;
+
+        const orders = await Order.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const totalRecords = await Order.countDocuments(filter);
+        const totalPages = Math.ceil(totalRecords / limit);
+
+        if (orders.length === 0) {
+            return res.status(404).json({ status: false, message: 'No se encontraron registros' });
+        }
+
+        res.status(200).json({
+            status: true,
+            data: orders,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalRecords
+            }
+        });
     } catch (error) {
         handleError(res, error);
     }
 };
+
+
 
 exports.getOrderByDomainAndOrderNumber = async (req, res) => {
     try {
@@ -62,13 +99,19 @@ exports.getOrderByDomainAndOrderNumber = async (req, res) => {
 exports.updatePaymentStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { paymentStatus } = req.body;
+        const { typeStatus, message, data, methodPayment } = req.body;
+
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
-            { paymentStatus },
+            {
+                paymentStatus: { typeStatus, message, data, methodPayment }
+            },
             { new: true }
         );
-        if (!updatedOrder) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
         res.status(200).json(updatedOrder);
     } catch (error) {
         handleError(res, error);
@@ -78,13 +121,19 @@ exports.updatePaymentStatus = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { orderStatus } = req.body;
+        const { typeStatus, message, date } = req.body;
+
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
-            { orderStatus },
+            {
+                orderStatus: { typeStatus, message, date }
+            },
             { new: true }
         );
-        if (!updatedOrder) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
         res.status(200).json(updatedOrder);
     } catch (error) {
         handleError(res, error);
