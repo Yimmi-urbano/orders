@@ -70,8 +70,6 @@ exports.getOrders = async (req, res) => {
     }
 };
 
-
-
 exports.getOrderByDomainAndOrderNumber = async (req, res) => {
     try {
         const domain = req.headers['domain'];
@@ -91,8 +89,6 @@ exports.getOrderByDomainAndOrderNumber = async (req, res) => {
         handleError(res, error);
     }
 };
-
-
 
 exports.updatePaymentStatus = async (req, res) => {
     try {
@@ -133,6 +129,36 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(404).json({ message: 'Pedido no encontrado' });
         }
         res.status(200).json(updatedOrder);
+    } catch (error) {
+        handleError(res, error);
+    }
+};
+
+exports.getTopSellingProduct = async (req, res) => {
+    try {
+        const domain = req.headers['domain'];
+        if (!domain) {
+            return res.status(400).json({ status: false, message: 'El dominio es requerido' });
+        }
+
+        const orders = await Order.aggregate([
+            { $match: { domain, 'paymentStatus.typeStatus': 'completed' } },
+            { $unwind: "$products" },
+            { $group: {
+                _id: "$products.productId",
+                name: { $first: "$products.title" },
+                image: { $first: "$products.image" },
+                totalSold: { $sum: "$products.qty" }
+            }},
+            { $sort: { totalSold: -1 } },
+            { $limit: 1 }
+        ]);
+
+        if (orders.length === 0) {
+            return res.status(404).json({ status: false, message: 'No hay productos vendidos' });
+        }
+
+        res.status(200).json({ status: true, data: orders[0] });
     } catch (error) {
         handleError(res, error);
     }

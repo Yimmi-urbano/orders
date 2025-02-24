@@ -8,5 +8,6 @@ router.get('/:domain', orderController.getOrders);
 router.put('/:orderId/payment-status', orderController.updatePaymentStatus);
 router.put('/:orderId/order-status', orderController.updateOrderStatus);
 router.get('/id/:orderNumber', orderController.getOrderByDomainAndOrderNumber);
+router.get('/product/top-selling-product', orderController.getTopSellingProduct);
 
 module.exports = router;

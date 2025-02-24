@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
         type: {
             typeStatus: { type: String, enum: ['pending', 'completed', 'failed', 'decline'], default: 'pending' },
             message: { type: String },
-            data: { type: String },
+            date: { type: String },
             methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'] }
         },
         default: {}
