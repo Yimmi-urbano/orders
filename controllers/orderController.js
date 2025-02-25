@@ -148,9 +148,11 @@ exports.getTopSellingProduct = async (req, res) => {
                 _id: "$products.productId",
                 name: { $first: "$products.title" },
                 image: { $first: "$products.image" },
-                slug: { $first: "$products.slug" },
+                slugs: { $push: "$products.slug" },
                 totalSold: { $sum: "$products.qty" }
             }},
+            { $addFields: { slug: { $arrayElemAt: ["$slugs", 0] } } },
+            { $project: { slugs: 0 } }, 
             { $sort: { totalSold: -1 } },
             { $limit: 1 }
         ]);
