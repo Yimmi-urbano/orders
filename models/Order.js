@@ -14,7 +14,7 @@ const orderSchema = new mongoose.Schema({
             typeStatus: { type: String, enum: ['pending', 'completed', 'failed', 'decline'], default: 'pending' },
             message: { type: String, default: '' },
             date: { type: String, default: '' },
-            methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'], default: '' }
+            methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'], default: null }
         },
         default: {}
     },
