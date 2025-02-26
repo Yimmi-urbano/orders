@@ -48,7 +48,8 @@ exports.getOrders = async (req, res) => {
         const orders = await Order.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit);
+            .limit(limit)
+            .lean(); // Convierte documentos a objetos JavaScript simples
 
         const totalRecords = await Order.countDocuments(filter);
         const totalPages = Math.ceil(totalRecords / limit);
@@ -57,11 +58,17 @@ exports.getOrders = async (req, res) => {
             return res.status(404).json({ status: false, message: 'No se encontraron registros' });
         }
 
+        // Formatear fechas antes de enviarlas en la respuesta
+        const formattedOrders = orders.map(order => ({
+            ...order,
+            createdAt: moment(order.createdAt).tz("America/Lima").format("DD-MM-YYYY")
+        }));
+
         res.status(200).json({
             status: true,
-            data: orders,
+            data: formattedOrders,
             pagination: {
-                currentPage: page,
+                currentPage: Number(page),
                 totalPages,
                 totalRecords
             }
@@ -168,25 +175,37 @@ exports.getTopSellingProduct = async (req, res) => {
     }
 };
 
-const monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-exports.getMonthlySales = async (req, res) => {
+exports.getDailySales = async (req, res) => {
     try {
         let { startDate, endDate } = req.query;
-        const domain = req.headers.domain; 
+        const domain = req.headers.domain;
 
         if (!startDate || !endDate || !domain) {
             return res.status(400).json({ 
                 status: false, 
-                message: 'Debe proporcionar startDate, endDate en query params y domain en headers' 
+                message: 'Debe proporcionar startDate, endDate en formato YYYY-MM-DD en query params y domain en headers.' 
             });
         }
 
-        startDate = moment(startDate, 'DD-MM-YYYY').startOf('month').toDate();
-        endDate = moment(endDate, 'DD-MM-YYYY').endOf('month').toDate();
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+            return res.status(400).json({ 
+                status: false, 
+                message: 'El formato de fecha es incorrecto. Use YYYY-MM-DD. Ejemplo: startDate=2025-01-01&endDate=2025-07-31' 
+            });
+        }
+
+        if (!moment(startDate, 'YYYY-MM-DD', true).isValid() || !moment(endDate, 'YYYY-MM-DD', true).isValid()) {
+            return res.status(400).json({ 
+                status: false, 
+                message: 'Las fechas proporcionadas no son válidas. Use el formato YYYY-MM-DD.' 
+            });
+        }
+
+        // Convertir a zona horaria America/Lima
+        startDate = moment.tz(startDate, 'YYYY-MM-DD', 'America/Lima').startOf('day').toDate();
+        endDate = moment.tz(endDate, 'YYYY-MM-DD', 'America/Lima').endOf('day').toDate();
 
         const sales = await Order.aggregate([
             {
@@ -199,23 +218,49 @@ exports.getMonthlySales = async (req, res) => {
             {
                 $group: {
                     _id: { 
-                        year: { $year: '$createdAt' }, 
-                        month: { $month: '$createdAt' } 
+                        day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "America/Lima" } }, 
+                        dayOfWeek: { $dayOfWeek: "$createdAt" } 
                     },
-                    totalSales: { $sum: '$total' }
+                    uv: { $sum: '$total' }
                 }
             },
-            { $sort: { '_id.year': 1, '_id.month': 1 } }
+            { $sort: { '_id.day': 1 } },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$_id.day',
+                    day: {
+                        $switch: {
+                            branches: [
+                                { case: { $eq: ["$_id.dayOfWeek", 1] }, then: "Domingo" },
+                                { case: { $eq: ["$_id.dayOfWeek", 2] }, then: "Lunes" },
+                                { case: { $eq: ["$_id.dayOfWeek", 3] }, then: "Martes" },
+                                { case: { $eq: ["$_id.dayOfWeek", 4] }, then: "Miércoles" },
+                                { case: { $eq: ["$_id.dayOfWeek", 5] }, then: "Jueves" },
+                                { case: { $eq: ["$_id.dayOfWeek", 6] }, then: "Viernes" },
+                                { case: { $eq: ["$_id.dayOfWeek", 7] }, then: "Sábado" }
+                            ],
+                            default: "Desconocido"
+                        }
+                    },
+                    uv: { $toDouble: { $round: ["$uv", 2] } }
+                }
+            }
         ]);
 
-        const formattedSales = sales.map(sale => ({
-            name: monthNames[sale._id.month - 1],
-            uv: sale.totalSales
-        }));
+        // Calcular la suma total de uv y la cantidad de registros en `data`
+        const totalUv = sales.reduce((sum, item) => sum + item.uv, 0);
+        const totalCount = sales.length; // Número de registros en `data`
 
-        return res.status(200).json({ status: true, data: formattedSales });
+        return res.status(200).json({ 
+            status: true, 
+            data: sales, 
+            totalUv: Math.round(totalUv * 100) / 100, 
+            totalCount // Número de elementos en `data`
+        });
     } catch (error) {
-        console.error('Error obteniendo ventas mensuales:', error);
-        return res.status(500).json({ status: false, message: 'Error interno del servidor' });
+        console.error('Error obteniendo ventas diarias:', error);
+        return res.status(500).json({ status: false, message: 'Error interno del servidor.' });
     }
 };
+
