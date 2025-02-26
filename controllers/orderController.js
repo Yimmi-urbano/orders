@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const { handleError } = require('../utils/errorHandler');
+const moment = require('moment-timezone');
 
 exports.createOrder = async (req, res) => {
     try {
@@ -164,5 +165,57 @@ exports.getTopSellingProduct = async (req, res) => {
         res.status(200).json({ status: true, data: orders[0] });
     } catch (error) {
         handleError(res, error);
+    }
+};
+
+const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+exports.getMonthlySales = async (req, res) => {
+    try {
+        let { startDate, endDate } = req.query;
+        const domain = req.headers.domain; 
+
+        if (!startDate || !endDate || !domain) {
+            return res.status(400).json({ 
+                status: false, 
+                message: 'Debe proporcionar startDate, endDate en query params y domain en headers' 
+            });
+        }
+
+        startDate = moment(startDate, 'DD-MM-YYYY').startOf('month').toDate();
+        endDate = moment(endDate, 'DD-MM-YYYY').endOf('month').toDate();
+
+        const sales = await Order.aggregate([
+            {
+                $match: {
+                    domain: domain,
+                    createdAt: { $gte: startDate, $lte: endDate },
+                    'paymentStatus.typeStatus': 'completed'
+                }
+            },
+            {
+                $group: {
+                    _id: { 
+                        year: { $year: '$createdAt' }, 
+                        month: { $month: '$createdAt' } 
+                    },
+                    totalSales: { $sum: '$total' }
+                }
+            },
+            { $sort: { '_id.year': 1, '_id.month': 1 } }
+        ]);
+
+        const formattedSales = sales.map(sale => ({
+            name: monthNames[sale._id.month - 1],
+            uv: sale.totalSales
+        }));
+
+        return res.status(200).json({ status: true, data: formattedSales });
+    } catch (error) {
+        console.error('Error obteniendo ventas mensuales:', error);
+        return res.status(500).json({ status: false, message: 'Error interno del servidor' });
     }
 };

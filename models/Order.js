@@ -5,51 +5,44 @@ const moment = require('moment-timezone');
 const orderSchema = new mongoose.Schema({
     orderNumber: { type: String, unique: true },
     domain: { type: String, required: true },
-    products: [],
-    clientInfo: {},
-    billingInfo: {},
-    shippingInfo: {},
+    products: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    clientInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
+    billingInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
+    shippingInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
     paymentStatus: {
         type: {
             typeStatus: { type: String, enum: ['pending', 'completed', 'failed', 'decline'], default: 'pending' },
-            message: { type: String },
-            date: { type: String },
-            methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'] }
+            message: { type: String, default: '' },
+            date: { type: String, default: '' },
+            methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'], default: '' }
         },
         default: {}
     },
-    total: { type: Number },
-    currency: { type: String },
+    total: { type: Number, required: true },
+    currency: { type: String, required: true },
     orderStatus: {
         type: {
             typeStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-            message: { type: String },
-            date: { type: String }
+            message: { type: String, default: '' },
+            date: { type: String, default: '' }
         },
         default: {}
-    },
-    createdAt: { type: String }
-});
+    }
+}, { timestamps: true });
 
 orderSchema.pre('save', async function (next) {
-    const order = this;
+    if (!this.isNew) return next();
 
-    if (order.isNew) {
-        try {
-            const now = moment.tz('America/Lima');
-            const timestamp = now.valueOf();
-            const ksuidString = await ksuid.random();
-            const randomPart = ksuidString.string.slice(0, 7);
+    try {
+        const now = moment.tz('America/Lima').toDate();
+        const ksuidString = await ksuid.random();
+        const randomPart = ksuidString.string.slice(0, 7);
 
-            order.orderNumber = `${timestamp}${randomPart}`;
-            order.createdAt = now.format('DD-MM-YYYY');
-
-            next();
-        } catch (error) {
-            next(error);
-        }
-    } else {
+        this.orderNumber = `${Date.now()}${randomPart}`;
+        this.createdAt = now;
         next();
+    } catch (error) {
+        next(error);
     }
 });
 
