@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
         type: {
             typeStatus: { type: String, enum: ['pending', 'completed', 'failed', 'decline'], default: 'pending' },
             message: { type: String, default: '' },
-            date: { type: Date, default: null },
+            date: { type: Date },
             methodPayment: { type: String, enum: ['credit_card', 'yape', 'plin', 'transfer'], default: null }
         },
         default: {}
@@ -24,7 +24,7 @@ const orderSchema = new mongoose.Schema({
         type: {
             typeStatus: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
             message: { type: String, default: '' },
-            date: { type: String, default: '' }
+            date: { type: Date }
         },
         default: {}
     }
@@ -40,9 +40,8 @@ orderSchema.pre('save', async function (next) {
 
         this.orderNumber = `${Date.now()}${randomPart}`;
         this.createdAt = now;
-        if (!this.paymentStatus.date) {
-            this.paymentStatus.date = now;
-        }
+        
+    
         next();
     } catch (error) {
         next(error);

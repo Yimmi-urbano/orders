@@ -101,46 +101,72 @@ exports.getOrderByDomainAndOrderNumber = async (req, res) => {
 exports.updatePaymentStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { typeStatus, message, data, methodPayment } = req.body;
+        const { typeStatus, message, methodPayment } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ message: "El ID del pedido es requerido." });
+        }
+
+        const paymentDate = moment.tz('America/Lima').toDate();
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             {
-                paymentStatus: { typeStatus, message, data, methodPayment }
+                $set: {
+                    "paymentStatus.typeStatus": typeStatus,
+                    "paymentStatus.message": message || "",
+                    "paymentStatus.methodPayment": methodPayment || null,
+                    "paymentStatus.date": paymentDate
+                }
             },
             { new: true }
         );
 
         if (!updatedOrder) {
-            return res.status(404).json({ message: 'Pedido no encontrado' });
+            return res.status(404).json({ message: "Pedido no encontrado." });
         }
-        res.status(200).json(updatedOrder);
+
+        res.status(200).json({ status: true, message: "Estado de pago actualizado.", data: updatedOrder });
     } catch (error) {
-        handleError(res, error);
+        console.error("Error actualizando estado de pago:", error);
+        res.status(500).json({ status: false, message: "Error interno del servidor." });
     }
 };
 
 exports.updateOrderStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { typeStatus, message, date } = req.body;
+        const { typeStatus, message } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ message: "El ID del pedido es requerido." });
+        }
+
+        const statusDate = moment.tz('America/Lima').toDate();
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             {
-                orderStatus: { typeStatus, message, date }
+                $set: {
+                    "orderStatus.typeStatus": typeStatus,
+                    "orderStatus.message": message || "",
+                    "orderStatus.date": statusDate
+                }
             },
             { new: true }
         );
 
         if (!updatedOrder) {
-            return res.status(404).json({ message: 'Pedido no encontrado' });
+            return res.status(404).json({ message: "Pedido no encontrado." });
         }
-        res.status(200).json(updatedOrder);
+
+        res.status(200).json({ status: true, message: "Estado del pedido actualizado.", data: updatedOrder });
     } catch (error) {
-        handleError(res, error);
+        console.error("Error actualizando estado del pedido:", error);
+        res.status(500).json({ status: false, message: "Error interno del servidor." });
     }
 };
+
 
 exports.getTopSellingProduct = async (req, res) => {
     try {
