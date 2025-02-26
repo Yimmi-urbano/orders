@@ -61,7 +61,13 @@ exports.getOrders = async (req, res) => {
         // Formatear fechas antes de enviarlas en la respuesta
         const formattedOrders = orders.map(order => ({
             ...order,
-            createdAt: moment(order.createdAt).tz("America/Lima").format("DD-MM-YYYY")
+            createdAt: moment(order.createdAt).tz("America/Lima").format("DD-MM-YYYY"),
+            paymentStatus: {
+                ...order.paymentStatus,
+                date: order.paymentStatus?.date 
+                    ? moment(order.paymentStatus.date).tz("America/Lima").format("DD-MM-YYYY") 
+                    : null
+            }
         }));
 
         res.status(200).json({
@@ -77,6 +83,7 @@ exports.getOrders = async (req, res) => {
         handleError(res, error);
     }
 };
+
 
 exports.getOrderByDomainAndOrderNumber = async (req, res) => {
     try {
