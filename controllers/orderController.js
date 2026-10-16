@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const { handleError } = require('../utils/errorHandler');
 const moment = require('moment-timezone');
+const { notifyOwnerAboutNewOrder } = require('../services/orderNotificationService');
 
 exports.createOrder = async (req, res) => {
     try {
@@ -18,6 +19,12 @@ exports.createOrder = async (req, res) => {
         });
 
         const savedOrder = await order.save();
+
+        // La entrega de WhatsApp nunca debe impedir que se confirme un pedido válido.
+        notifyOwnerAboutNewOrder(savedOrder.toObject()).catch((error) => {
+            console.error(`No se pudo notificar el pedido ${savedOrder.orderNumber}:`, error.message);
+        });
+
         res.status(201).json(savedOrder);
     } catch (error) {
         handleError(res, error);
