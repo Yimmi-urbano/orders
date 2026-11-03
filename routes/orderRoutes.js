@@ -5,7 +5,8 @@ const validateDomain = require('../middlewares/validateDomain');
 
 router.post('/', validateDomain, orderController.createOrder);
 router.get('/list', orderController.getOrders);
-router.put('/:orderId/payment-status', orderController.updatePaymentStatus);
+router.put('/:orderId/payment-status', validateDomain, orderController.updatePaymentStatus);
+router.post('/:orderId/inventory-sync', validateDomain, orderController.syncInventory);
 router.put('/:orderId/order-status', orderController.updateOrderStatus);
 router.get('/id/:orderNumber', orderController.getOrderByDomainAndOrderNumber);
 router.get('/product/top-selling-product', orderController.getTopSellingProduct);

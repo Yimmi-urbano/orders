@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const { handleError } = require('../utils/errorHandler');
 const moment = require('moment-timezone');
 const { notifyOwnerAboutNewOrder } = require('../services/orderNotificationService');
+const { consumeOrderInventory } = require('../services/inventorySaleService');
 
 exports.createOrder = async (req, res) => {
     try {
@@ -116,15 +117,19 @@ exports.updatePaymentStatus = async (req, res) => {
     try {
         const { orderId } = req.params;
         const { typeStatus, message, methodPayment } = req.body;
+        const domain = req.headers['domain'];
 
-        if (!orderId) {
+        if (!orderId || !domain) {
             return res.status(400).json({ message: "El ID del pedido es requerido." });
+        }
+        if (!['pending', 'completed', 'failed', 'decline'].includes(typeStatus)) {
+            return res.status(400).json({ message: "El estado de pago no es válido." });
         }
 
         const paymentDate = moment.tz('America/Lima').toDate();
 
-        const updatedOrder = await Order.findByIdAndUpdate(
-            orderId,
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderId, domain },
             {
                 $set: {
                     "paymentStatus.typeStatus": typeStatus,
@@ -140,10 +145,63 @@ exports.updatePaymentStatus = async (req, res) => {
             return res.status(404).json({ message: "Pedido no encontrado." });
         }
 
-        res.status(200).json({ status: true, message: "Estado de pago actualizado.", data: updatedOrder });
+        if (typeStatus === 'completed') {
+            try {
+                const movements = await consumeOrderInventory(updatedOrder.toObject());
+                const inventorySync = {
+                    status: 'synced',
+                    movementIds: movements.map((movement) => String(movement._id)).filter(Boolean),
+                    syncedAt: new Date(),
+                    lastError: ''
+                };
+                await Order.updateOne({ _id: updatedOrder._id, domain }, { $set: { inventorySync } });
+                updatedOrder.inventorySync = inventorySync;
+            } catch (inventoryError) {
+                const inventorySync = {
+                    status: 'failed',
+                    movementIds: [],
+                    lastError: inventoryError.message || 'No fue posible descontar el inventario.'
+                };
+                await Order.updateOne({ _id: updatedOrder._id, domain }, { $set: { inventorySync } });
+                updatedOrder.inventorySync = inventorySync;
+                console.error(`Inventario no sincronizado para el pedido ${updatedOrder.orderNumber}:`, inventorySync.lastError);
+            }
+        }
+
+        res.status(200).json({
+            status: true,
+            message: "Estado de pago actualizado.",
+            data: updatedOrder,
+            inventory: updatedOrder.inventorySync
+        });
     } catch (error) {
         console.error("Error actualizando estado de pago:", error);
         res.status(500).json({ status: false, message: "Error interno del servidor." });
+    }
+};
+
+exports.syncInventory = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const domain = req.headers['domain'];
+        const order = await Order.findOne({ _id: orderId, domain });
+        if (!order) return res.status(404).json({ message: 'Pedido no encontrado.' });
+        if (order.paymentStatus?.typeStatus !== 'completed') {
+            return res.status(409).json({ message: 'Solo se sincronizan pedidos con pago completado.' });
+        }
+
+        const movements = await consumeOrderInventory(order.toObject());
+        const inventorySync = {
+            status: 'synced',
+            movementIds: movements.map((movement) => String(movement._id)).filter(Boolean),
+            syncedAt: new Date(),
+            lastError: ''
+        };
+        await Order.updateOne({ _id: order._id, domain }, { $set: { inventorySync } });
+        res.status(200).json({ status: true, message: 'Inventario sincronizado.', movementIds: inventorySync.movementIds });
+    } catch (error) {
+        console.error('Error sincronizando inventario del pedido:', error);
+        res.status(502).json({ status: false, message: error.message || 'No fue posible sincronizar el inventario.' });
     }
 };
 

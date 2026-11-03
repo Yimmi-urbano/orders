@@ -18,6 +18,12 @@ const orderSchema = new mongoose.Schema({
         },
         default: {}
     },
+    inventorySync: {
+        status: { type: String, enum: ['not_requested', 'synced', 'failed'], default: 'not_requested' },
+        movementIds: [{ type: String }],
+        syncedAt: { type: Date },
+        lastError: { type: String, default: '' }
+    },
     total: { type: Number, required: true },
     currency: { type: String, required: true },
     orderStatus: {
