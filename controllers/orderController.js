@@ -3,6 +3,7 @@ const { handleError } = require('../utils/errorHandler');
 const moment = require('moment-timezone');
 const { notifyOwnerAboutNewOrder } = require('../services/orderNotificationService');
 const { consumeOrderInventory } = require('../services/inventorySaleService');
+const { getDomainTimeZone } = require('../services/domainTimeZoneService');
 
 exports.createOrder = async (req, res) => {
     try {
@@ -39,9 +40,23 @@ exports.getOrders = async (req, res) => {
             return res.status(400).json({ status: false, message: 'El dominio es requerido' });
         }
 
-        const { clientName, orderNumber, page = 1 } = req.query;
+        const { clientName, orderNumber, page = 1, startDate, endDate } = req.query;
+        const timeZone = await getDomainTimeZone(domain);
 
         const filter = { domain };
+
+        if (startDate || endDate) {
+            const isValidDate = (value) => typeof value === 'string'
+                && /^\d{4}-\d{2}-\d{2}$/.test(value)
+                && moment.tz(value, 'YYYY-MM-DD', true, timeZone).isValid();
+            if (!isValidDate(startDate) || !isValidDate(endDate) || startDate > endDate) {
+                return res.status(400).json({ status: false, message: 'startDate y endDate deben ser fechas válidas YYYY-MM-DD y startDate no puede superar endDate.' });
+            }
+            filter.createdAt = {
+                $gte: moment.tz(startDate, 'YYYY-MM-DD', timeZone).startOf('day').toDate(),
+                $lt: moment.tz(endDate, 'YYYY-MM-DD', timeZone).add(1, 'day').startOf('day').toDate(),
+            };
+        }
 
         if (clientName) {
             filter['clientInfo.name'] = { $regex: clientName, $options: 'i' };
@@ -62,18 +77,14 @@ exports.getOrders = async (req, res) => {
         const totalRecords = await Order.countDocuments(filter);
         const totalPages = Math.ceil(totalRecords / limit);
 
-        if (orders.length === 0) {
-            return res.status(404).json({ status: false, message: 'No se encontraron registros' });
-        }
-
         // Formatear fechas antes de enviarlas en la respuesta
         const formattedOrders = orders.map(order => ({
             ...order,
-            createdAt: moment(order.createdAt).tz("America/Lima").format("DD-MM-YYYY"),
+            createdAt: moment(order.createdAt).tz(timeZone).format("DD-MM-YYYY"),
             paymentStatus: {
                 ...order.paymentStatus,
                 date: order.paymentStatus?.date 
-                    ? moment(order.paymentStatus.date).tz("America/Lima").format("DD-MM-YYYY") 
+                    ? moment(order.paymentStatus.date).tz(timeZone).format("DD-MM-YYYY")
                     : null
             }
         }));
@@ -126,7 +137,7 @@ exports.updatePaymentStatus = async (req, res) => {
             return res.status(400).json({ message: "El estado de pago no es válido." });
         }
 
-        const paymentDate = moment.tz('America/Lima').toDate();
+        const paymentDate = new Date();
 
         const updatedOrder = await Order.findOneAndUpdate(
             { _id: orderId, domain },
@@ -214,7 +225,7 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(400).json({ message: "El ID del pedido es requerido." });
         }
 
-        const statusDate = moment.tz('America/Lima').toDate();
+        const statusDate = new Date();
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
@@ -277,6 +288,7 @@ exports.getDailySales = async (req, res) => {
     try {
         let { startDate, endDate } = req.query;
         const domain = req.headers.domain;
+        const timeZone = await getDomainTimeZone(domain);
 
         if (!startDate || !endDate || !domain) {
             return res.status(400).json({ 
@@ -294,16 +306,15 @@ exports.getDailySales = async (req, res) => {
             });
         }
 
-        if (!moment(startDate, 'YYYY-MM-DD', true).isValid() || !moment(endDate, 'YYYY-MM-DD', true).isValid()) {
+        if (!moment.tz(startDate, 'YYYY-MM-DD', true, timeZone).isValid() || !moment.tz(endDate, 'YYYY-MM-DD', true, timeZone).isValid()) {
             return res.status(400).json({ 
                 status: false, 
                 message: 'Las fechas proporcionadas no son válidas. Use el formato YYYY-MM-DD.' 
             });
         }
 
-        // Convertir a zona horaria America/Lima
-        startDate = moment.tz(startDate, 'YYYY-MM-DD', 'America/Lima').startOf('day').toDate();
-        endDate = moment.tz(endDate, 'YYYY-MM-DD', 'America/Lima').endOf('day').toDate();
+        startDate = moment.tz(startDate, 'YYYY-MM-DD', timeZone).startOf('day').toDate();
+        endDate = moment.tz(endDate, 'YYYY-MM-DD', timeZone).endOf('day').toDate();
 
         const sales = await Order.aggregate([
             {
@@ -316,8 +327,8 @@ exports.getDailySales = async (req, res) => {
             {
                 $group: {
                     _id: { 
-                        day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "America/Lima" } }, 
-                        dayOfWeek: { $dayOfWeek: "$createdAt" } 
+                        day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: timeZone } },
+                        dayOfWeek: { $dayOfWeek: { date: "$createdAt", timezone: timeZone } }
                     },
                     uv: { $sum: '$total' }
                 }
